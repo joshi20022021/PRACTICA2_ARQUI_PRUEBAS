@@ -4,6 +4,7 @@ from datetime import datetime
 from time import sleep
 import spidev
 
+
 # Definir los pines
 LDR_PIN = 29
 LED_PIN = 31
@@ -15,6 +16,7 @@ LCD_D4 = 13  # BOARD pin 15
 LCD_D5 = 37  # BOARD pin 12
 LCD_D6 = 22  # BOARD pin 36
 LCD_D7 = 18 # BOARD pin 32
+
 
 # Define some device constants
 LCD_WIDTH = 16  # Maximum characters per line
