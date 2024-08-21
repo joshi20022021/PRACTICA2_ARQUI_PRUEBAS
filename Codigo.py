@@ -20,6 +20,7 @@ E_PULSE = 0.0005
 E_DELAY = 0.5
 
 # Variables para el sensor de luz
+
 spi = spidev.SpiDev()
 spi.open(0, 0)
 
@@ -206,9 +207,11 @@ def main():
 
         # LOGICA LUCES DE LA CASA
         ENCENDIDAS = GPIO.input(ENCENDER_LUCES) == 1
+        print("EL BOTON DE ENCENDIDO ESTA EN ", ENCENDIDAS)
         # LOGICA LUCES DE LA CASA
         print(ENCENDIDAS)
         if GPIO.input(SENSOR_LUZ) == 0:
+            print("Sensor Luz no tiene luz")
             if ENCENDIDAS:
                 for pin in LUCES_CASA:
                     GPIO.output(pin, GPIO.HIGH)
@@ -216,6 +219,7 @@ def main():
                 for pin in LUCES_CASA:
                     GPIO.output(pin, GPIO.LOW)
         else:
+            print("Sensor Luz SI tiene luz")
             if ENCENDIDAS:
                 for pin in LUCES_CASA:
                     GPIO.output(pin, GPIO.LOW)
