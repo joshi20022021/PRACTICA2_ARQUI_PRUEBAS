@@ -114,6 +114,9 @@ def main():
 
     temp_message_thread = None
 
+    attempt = 0
+    locked = False
+
     # BOTON DE LUZ APAGADO
     while True:
         # LOGICA SENSOR FUEGO
@@ -129,32 +132,20 @@ def main():
 
         # LOGICA PARA EL BOTON ENTER INICIAL
         if GPIO.input(BOTON_ENTER) == 1 and enter_reiniciado:
-            lcd_message(house_state[0], house_state[1])
+            lcd_message("Ingresar Patron", "***")
 
         # LOGICA CONTRA
-        if (
-            GPIO.input(BOTON_GRUPO) == 1
-            and not BOTON_GRUPO in password
-            and enter_reiniciado
-        ):
+        if GPIO.input(BOTON_GRUPO) == 1 and not BOTON_GRUPO in password and enter_reiniciado:
             password.append(BOTON_GRUPO)
             print("BOTON GRUPO GUARDADO")
-        elif (
-            GPIO.input(BOTON_SECCION) == 1
-            and not BOTON_SECCION in password
-            and enter_reiniciado
-        ):
+        elif GPIO.input(BOTON_SECCION) == 1 and not BOTON_SECCION in password and enter_reiniciado:
             password.append(BOTON_SECCION)
             print("BOTON_SECCION GUARDADO")
-        elif (
-            GPIO.input(BOTON_ASTERISCO) == 1
-            and not BOTON_ASTERISCO in password
-            and enter_reiniciado
-        ):
+        elif GPIO.input(BOTON_ASTERISCO) == 1 and not BOTON_ASTERISCO in password and enter_reiniciado:
             password.append(BOTON_ASTERISCO)
             print("BOTON_ASTERISCO GUARDADO")
 
-        # print(password, enter_reiniciado, GPIO.input(BOTON_ENTER))
+        #print(password, enter_reiniciado, GPIO.input(BOTON_ENTER))
 
         if GPIO.input(BOTON_ENTER) == 1 and len(password) == 3 and enter_reiniciado:
             # enviar informacion al display
@@ -169,23 +160,30 @@ def main():
                     counter += 1
 
             if valid:
-                temp_message_thread = threading.Thread(
-                    target=lcd_temp_message, args=(house_state, "Password", "Correcta")
-                )
-                temp_message_thread.start()
+                message_thread = threading.Thread(target=lcd_temp_message, args=(house_state, "Password", "Correcta"))
+                message_thread.start()
                 print("PASSWORD CORRECTA")
             else:
-                temp_message_thread = threading.Thread(
-                    target=lcd_temp_message,
-                    args=(house_state, "Password", "Incorrecta"),
-                )
-                temp_message_thread.start()
+                attempt += 1
+                message_thread = threading.Thread(target=lcd_temp_message, args=(house_state, "Password", "Incorrecta"))
+                message_thread.start()
                 print("PASSWORD INCORRECTA")
+
+                if attempt == 3:
+                    locked = True
+                    lcd_message("Sistema bloqueado", "15 segundos")
+                    for i in range(15, 0, -1):
+                        lcd_message("", str(i))
+                        sleep(1)
+                    locked = False
+                    attempt = 0
 
             password = []
             enter_reiniciado = False
+
         if GPIO.input(BOTON_ENTER) == 0:
             enter_reiniciado = True
+
 
         # LOGICA DE TEMPERATURA
         # Leer temperatura
@@ -207,11 +205,8 @@ def main():
 
         # LOGICA LUCES DE LA CASA
         ENCENDIDAS = GPIO.input(ENCENDER_LUCES) == 1
-        print("EL BOTON DE ENCENDIDO ESTA EN ", ENCENDIDAS)
         # LOGICA LUCES DE LA CASA
-        print(ENCENDIDAS)
         if GPIO.input(SENSOR_LUZ) == 0:
-            print("Sensor Luz no tiene luz")
             if ENCENDIDAS:
                 for pin in LUCES_CASA:
                     GPIO.output(pin, GPIO.HIGH)
@@ -219,7 +214,6 @@ def main():
                 for pin in LUCES_CASA:
                     GPIO.output(pin, GPIO.LOW)
         else:
-            print("Sensor Luz SI tiene luz")
             if ENCENDIDAS:
                 for pin in LUCES_CASA:
                     GPIO.output(pin, GPIO.LOW)
@@ -228,11 +222,11 @@ def main():
                     GPIO.output(pin, GPIO.HIGH)
 
                 # LOGICA BOTON DE RIEGO
-        if GPIO.input(BOTON_RIEGO) == 1:
-            GPIO.output(REGADORES, GPIO.HIGH)
-            lcd_temp_message(new_house_state, "Regando", "Invernadero")
-        else:
-            GPIO.output(REGADORES, GPIO.LOW)
+        # if GPIO.input(BOTON_RIEGO) == 1:
+        #     GPIO.output(REGADORES, GPIO.HIGH)
+        #     lcd_temp_message(new_house_state, "Regando", "Invernadero")
+        # else:
+        #     GPIO.output(REGADORES, GPIO.LOW)
 
         if temp_message_thread != None:
             if (
