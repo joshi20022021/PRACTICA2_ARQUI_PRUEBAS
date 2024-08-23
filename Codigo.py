@@ -32,9 +32,6 @@ spi.max_speed_hz = 100000
 LUZ_CHANNEL = 0
 GAS_CHANNEL = 1
 
-# Sensor de temp y humedad
-DHT11_DEV = adafruit_dht.DHT11(board.D21)
-
 
 # Configuraciones
 # GPIO.setmode(GPIO.BOARD)
@@ -81,11 +78,14 @@ BOTON_ENTER = 29
 def main():
     # Main program block
     GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BOARD)  # Use BOARD GPIO numbers
+    # GPIO.setmode(GPIO.BOARD)  # Use BOARD GPIO numbers
     ##################
 
     GPIO.setup(15, GPIO.OUT)
     GPIO.setup(16, GPIO.OUT)
+
+    # Sensor de temp y humedad
+    DHT11_DEV = adafruit_dht.DHT11(board.D2)
 
     # ENCENDER Y APAGAR LUZ CON SENSOR
     for pin in LUCES_CASA:
