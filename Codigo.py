@@ -2,16 +2,14 @@ from lcd_api import LcdApi
 from i2c_lcd import I2cLcd
 from states import HouseStates
 
-import RPi.GPIO as GPIO
 import spidev
 import adafruit_dht
 import board
-
+import digitalio
 
 import threading
 from datetime import datetime
 from time import sleep
-
 
 # LCD DISPLAY
 I2C_ADDR = 0x27
@@ -19,10 +17,6 @@ I2C_NUM_ROWS = 2
 I2C_NUM_COLS = 16
 
 lcd = I2cLcd(1, I2C_ADDR, I2C_NUM_ROWS, I2C_NUM_COLS)
-
-# Timing constants
-E_PULSE = 0.0005
-E_DELAY = 0.5
 
 # Variables para el sensor de luz
 spi = spidev.SpiDev()
@@ -32,120 +26,94 @@ spi.max_speed_hz = 100000
 LUZ_CHANNEL = 0
 GAS_CHANNEL = 1
 
+# Sensor de temp y humedad
+DHT11_DEV = adafruit_dht.DHT11(board.D21)
 
-# Configuraciones
-# GPIO.setmode(GPIO.BOARD)
+# Configuraciones de pines usando digitalio
+LUCES_CASA = [digitalio.DigitalInOut(board.D13)]
+SENSOR_LUZ = digitalio.DigitalInOut(board.D6)
+ENCENDER_LUCES = digitalio.DigitalInOut(board.D16)
+BOTON_AIRE = digitalio.DigitalInOut(board.D17)
+ALARMA = digitalio.DigitalInOut(board.D12)
+ROCIADORES = digitalio.DigitalInOut(board.D21)
+BOTON_RIEGO = digitalio.DigitalInOut(board.D19)
+REGADORES = digitalio.DigitalInOut(board.D20)
+BOTON_SECCION = digitalio.DigitalInOut(board.D27)
+BOTON_ASTERISCO = digitalio.DigitalInOut(board.D24)
+BOTON_GRUPO = digitalio.DigitalInOut(board.D4)
+BOTON_ENTER = digitalio.DigitalInOut(board.D5)
 
+# Configuración de la dirección de los pines
+for pin in LUCES_CASA:
+    pin.direction = digitalio.Direction.OUTPUT
 
-# Leer puerto de la temperatura
-def ReadChannel(channel):
-    adc = spi.xfer2([1, (8 + channel) << 4, 0])
-    data = ((adc[1] & 3) << 8) + adc[2]
-    return data
-
-
-# Voltaje recibido a la temperatura
-def ConvertTemp(data, places):
-    temp = (data * 330) / float(1023)
-    temp = round(temp, places)
-    return temp
-
-
-####################
-LUCES_CASA = [33]
-SENSOR_LUZ = 31
-
-ENCENDER_LUCES = 36
-
-BOTON_AIRE = 11
-
-ALARMA = 32
-ROCIADORES = 40
-
-BOTON_RIEGO = 35
-REGADORES = 38
-
-TEMP_HUMD = 21
-
-
-## Contrasena
-BOTON_SECCION = 13
-BOTON_ASTERISCO = 18
-BOTON_GRUPO = 7
-BOTON_ENTER = 29
+SENSOR_LUZ.direction = digitalio.Direction.INPUT
+ENCENDER_LUCES.direction = digitalio.Direction.INPUT
+BOTON_AIRE.direction = digitalio.Direction.INPUT
+BOTON_SECCION.direction = digitalio.Direction.INPUT
+BOTON_ASTERISCO.direction = digitalio.Direction.INPUT
+BOTON_GRUPO.direction = digitalio.Direction.INPUT
+BOTON_ENTER.direction = digitalio.Direction.INPUT
+ROCIADORES.direction = digitalio.Direction.OUTPUT
+ALARMA.direction = digitalio.Direction.OUTPUT
+BOTON_RIEGO.direction = digitalio.Direction.INPUT
+REGADORES.direction = digitalio.Direction.OUTPUT
 
 
 def main():
     # Main program block
-    GPIO.setwarnings(False)
-    # GPIO.setmode(GPIO.BOARD)  # Use BOARD GPIO numbers
     ##################
-
-    GPIO.setup(15, GPIO.OUT)
-    GPIO.setup(16, GPIO.OUT)
-
-    # Sensor de temp y humedad
-    DHT11_DEV = adafruit_dht.DHT11(board.D2)
-
     # ENCENDER Y APAGAR LUZ CON SENSOR
-    for pin in LUCES_CASA:
-        GPIO.setup(pin, GPIO.OUT)
-
-    GPIO.setup(SENSOR_LUZ, GPIO.IN)
-    GPIO.setup(ENCENDER_LUCES, GPIO.IN)
-
-    GPIO.setup(BOTON_GRUPO, GPIO.IN)  # primero
-    GPIO.setup(BOTON_SECCION, GPIO.IN)  # segundo
-    GPIO.setup(BOTON_ASTERISCO, GPIO.IN)  # tercero
-    GPIO.setup(BOTON_ENTER, GPIO.IN)
-
-    GPIO.setup(BOTON_AIRE, GPIO.IN)
-
-    # GPIO.setup(SENSOR_FUEGO, GPIO.IN)
-    GPIO.setup(ROCIADORES, GPIO.OUT)
-    GPIO.setup(ALARMA, GPIO.OUT)
-
-    GPIO.setup(BOTON_RIEGO, GPIO.IN)
-    GPIO.setup(REGADORES, GPIO.OUT)
-
-    # lista para contraseña
     password = []
 
-    # TODO set house state to be dynamic
+    my_state = MyHouseState()
     current_date = datetime.now()
     formatted_date = current_date.strftime("%d/%m/%Y")
     house_state = ["Temp 27 c", formatted_date]
-    new_house_state = house_state
+    new_house_state = house_state.copy()
 
     lcd_message(house_state[0], house_state[1])
 
     temp_message_thread = None
     blocked_thread = None
+    temperature_message_thread = None
 
     intento = 0
-
     estado_actual_casa = HouseStates.NORMAL
 
     # BOTON DE LUZ APAGADO
     while True:
         # When is in normal mode
+
         if estado_actual_casa == HouseStates.NORMAL:
-            new_house_state = sensor_temperatura(formatted_date)
+            # new_house_state = sensor_temperatura(formatted_date)
+
+            if temperature_message_thread != None:
+                if not temperature_message_thread.is_alive():
+                    temperature_message_thread = threading.Thread(
+                        target=mod_temperature_mesg,
+                        args=(new_house_state, formatted_date),
+                    )
+                    temperature_message_thread.start()
+            else:
+                temperature_message_thread = threading.Thread(
+                    target=mod_temperature_mesg, args=(new_house_state, formatted_date)
+                )
+                temperature_message_thread.start()
+
             luces_casa()
             sensor_fuego()
             reset_house_state(temp_message_thread, house_state, new_house_state)
 
-            if GPIO.input(BOTON_ENTER) == 1:
+            if BOTON_ENTER.value:
                 estado_actual_casa = HouseStates.PASSWORD
                 lcd_message("Ingrese Password", "***")
 
-        # When is in Blocked node
+        # When is in Blocked mode
         elif estado_actual_casa == HouseStates.BLOCKED:
-            # print("ESTAMOS BLOQUANDO LA CASA")
-            new_house_state = sensor_temperatura(formatted_date)
             sensor_fuego()
             luces_casa()
-            if blocked_thread != None:
+            if blocked_thread is not None:
                 if not blocked_thread.is_alive():
                     estado_actual_casa = HouseStates.NORMAL
                     blocked_thread = None
@@ -156,13 +124,12 @@ def main():
 
         # When is in Password mode
         elif estado_actual_casa == HouseStates.PASSWORD:
-            new_house_state = sensor_temperatura(formatted_date)
             sensor_fuego()
             luces_casa()
             if len(password) < 3:
                 password = guardar_botones(password)
-            elif len(password) == 3 and GPIO.input(BOTON_ENTER) == 1:
-                aceptado = verificar_password(password, house_state)
+            elif len(password) == 3 and BOTON_ENTER.value:
+                aceptado = verificar_password(password)
                 password = []
 
                 if aceptado:
@@ -175,7 +142,7 @@ def main():
                     temp_message_thread.start()
                     estado_actual_casa = HouseStates.NORMAL
 
-                if not aceptado:
+                else:
                     temp_message_thread = threading.Thread(
                         target=lcd_temp_message,
                         args=(new_house_state, "Password", "Incorrecta"),
@@ -196,98 +163,96 @@ def main():
 
 def sensor_fuego():
     # LOGICA SENSOR FUEGO
-    gas_value = read_adc(GAS_CHANNEL)  # Leer canal 0 (foto resistencia)
+    gas_value = read_adc(GAS_CHANNEL)  # Leer canal 1 (sensor de gas)
     if gas_value > 1500:
-        GPIO.output(ROCIADORES, GPIO.HIGH)
-        GPIO.output(ALARMA, GPIO.HIGH)
+        ROCIADORES.value = True
+        ALARMA.value = True
     else:
-        GPIO.output(ROCIADORES, GPIO.LOW)
-        GPIO.output(ALARMA, GPIO.LOW)
+        ROCIADORES.value = False
+        ALARMA.value = False
+
+
+def mod_temperature_mesg(new_house_state, formatted_date):
+    print("#" * 15)
+    print(new_house_state)
+    print("#" * 15)
+    new_house_state = sensor_temperatura(formatted_date)
 
 
 def sensor_temperatura(formatted_date):
-    # LOGICA DE TEMPERATURA
-    # Leer temperatura
-    # temp_level = ReadChannel(channel_temp)
-    # temp = ConvertTemp(temp_level, 2)
+    try:
+        temperature = DHT11_DEV.temperature
+        humidity = DHT11_DEV.humidity
 
-    temperature = DHT11_DEV.temperature
-    humidity = DHT11_DEV.humidity
+        if humidity is not None and temperature is not None:
+            print("Temp={0:0.1f}*C  Humidity={1:0.1f}%".format(temperature, humidity))
+        else:
+            print("Failed to get reading. Try again!")
+            temperature = "Err"
+            humidity = "Err"
 
-    # Reading the DHT11 is very sensitive to timings and occasionally
-    # the Pi might fail to get a valid reading. So check if readings are valid.
-    if humidity is not None and temperature is not None:
-        print("Temp={0:0.1f}*C  Humidity={1:0.1f}%".format(temperature, humidity))
-    else:
-        print("Failed to get reading. Try again!")
+    except RuntimeError as error:
+        print(f"Error reading DHT11: {error}")
+        temperature = "Err"
+        humidity = "Err"
 
-    temp = 0
-    new_house_state = ["Temp " + str(int(temp)) + " c", formatted_date]
-    if temp > 27 and GPIO.input(BOTON_AIRE) == 0:
-        GPIO.output(15, GPIO.HIGH)
-        GPIO.output(16, GPIO.LOW)
-        sleep(0.5)
-        GPIO.output(15, GPIO.LOW)
-        GPIO.output(16, GPIO.HIGH)
-    elif temp > 27 and GPIO.input(BOTON_AIRE) == 1:
-        GPIO.output(15, GPIO.LOW)
-        GPIO.output(16, GPIO.LOW)
-    else:
-        GPIO.output(15, GPIO.LOW)
-        GPIO.output(16, GPIO.LOW)
+    except OverflowError as error:
+        print(f"OverflowError: {error}")
+        sleep(2)  # Pausa antes de reintentar la lectura
+        temperature = "Err"
+        humidity = "Err"
 
+    new_house_state = ["Temp " + str(temperature) + " C", formatted_date]
+    sleep(2)
     return new_house_state
 
 
 def luces_casa():
     # LOGICA LUCES DE LA CASA
-    ENCENDIDAS = GPIO.input(ENCENDER_LUCES) == 1
+    ENCENDIDAS = ENCENDER_LUCES.value
     light_value = read_adc(LUZ_CHANNEL)  # Leer canal 0 (foto resistencia)
-    # LOGICA LUCES DE LA CASA
+
     if light_value > 500:
-        # print("Canal 0: ", light_value)
         if ENCENDIDAS:
             for pin in LUCES_CASA:
-                GPIO.output(pin, GPIO.HIGH)
+                pin.value = True
         else:
             for pin in LUCES_CASA:
-                GPIO.output(pin, GPIO.LOW)
+                pin.value = False
     else:
         if ENCENDIDAS:
             for pin in LUCES_CASA:
-                GPIO.output(pin, GPIO.LOW)
+                pin.value = False
         else:
             for pin in LUCES_CASA:
-                GPIO.output(pin, GPIO.HIGH)
+                pin.value = True
 
 
 def reset_house_state(temp_message_thread, house_state, new_house_state):
-    if temp_message_thread != None:
+    if temp_message_thread is not None:
         if not temp_message_thread.is_alive() and new_house_state[0] != house_state[0]:
             house_state = new_house_state
-
             lcd_message(house_state[0], house_state[1])
-
-    elif temp_message_thread == None and new_house_state[0] != house_state[0]:
+    elif temp_message_thread is None and new_house_state[0] != house_state[0]:
         house_state = new_house_state
         lcd_message(house_state[0], house_state[1])
 
 
 def guardar_botones(password):
     # LOGICA CONTRA
-    if GPIO.input(BOTON_GRUPO) == 1 and not BOTON_GRUPO in password:
+    if BOTON_GRUPO.value and BOTON_GRUPO not in password:
         password.append(BOTON_GRUPO)
         print("BOTON GRUPO GUARDADO")
-    elif GPIO.input(BOTON_SECCION) == 1 and not BOTON_SECCION in password:
+    elif BOTON_SECCION.value and BOTON_SECCION not in password:
         password.append(BOTON_SECCION)
         print("BOTON_SECCION GUARDADO")
-    elif GPIO.input(BOTON_ASTERISCO) == 1 and not BOTON_ASTERISCO in password:
+    elif BOTON_ASTERISCO.value and BOTON_ASTERISCO not in password:
         password.append(BOTON_ASTERISCO)
         print("BOTON_ASTERISCO GUARDADO")
     return password
 
 
-def verificar_password(password, house_state):
+def verificar_password(password):
     aceptada = False
     counter = 0
     for item in [BOTON_GRUPO, BOTON_SECCION, BOTON_ASTERISCO]:
@@ -330,7 +295,7 @@ def lcd_temp_message(state: list, line1="", line2=""):
     lcd.putstr(state[0])
     lcd.move_to(0, 1)
     lcd.putstr(state[1])
-    sleep(E_DELAY)
+    sleep(0.5)
 
 
 def lcd_message(line1="", line2=""):
@@ -339,13 +304,22 @@ def lcd_message(line1="", line2=""):
     lcd.putstr(line1)
     lcd.move_to(0, 1)
     lcd.putstr(line2)
-    sleep(E_DELAY)
+    sleep(0.5)
 
 
 def read_adc(channel):
     adc = spi.xfer2([6 | (channel & 4) >> 2, (channel & 3) << 6, 0])
     data = ((adc[1] & 15) << 8) + adc[2]
     return data
+
+
+class MyHouseState:
+    def __init__(self) -> None:
+
+        current_date = datetime.now()
+        self.formatted_date = current_date.strftime("%d/%m/%Y")
+        self.house_state = ["", self.formatted_date]
+        self.new_house_state = ["", self.formatted_date]
 
 
 if __name__ == "__main__":
@@ -357,5 +331,5 @@ if __name__ == "__main__":
         lcd.clear()
         lcd.move_to(0, 0)
         lcd.putstr("Goodbye!")
-        sleep(E_DELAY)
+        sleep(0.5)
         spi.close()
