@@ -38,6 +38,7 @@ ALARMA = digitalio.DigitalInOut(board.D12)
 ROCIADORES = digitalio.DigitalInOut(board.D21)
 BOTON_RIEGO = digitalio.DigitalInOut(board.D19)
 REGADORES = digitalio.DigitalInOut(board.D20)
+
 BOTON_SECCION = digitalio.DigitalInOut(board.D27)
 BOTON_ASTERISCO = digitalio.DigitalInOut(board.D24)
 BOTON_GRUPO = digitalio.DigitalInOut(board.D4)
@@ -92,18 +93,20 @@ def main():
                 if not temperature_message_thread.is_alive():
                     temperature_message_thread = threading.Thread(
                         target=mod_temperature_mesg,
-                        args=(new_house_state, formatted_date),
+                        args=(my_state, formatted_date),
                     )
                     temperature_message_thread.start()
             else:
                 temperature_message_thread = threading.Thread(
-                    target=mod_temperature_mesg, args=(new_house_state, formatted_date)
+                    target=mod_temperature_mesg, args=(my_state, formatted_date)
                 )
                 temperature_message_thread.start()
 
             luces_casa()
             sensor_fuego()
-            reset_house_state(temp_message_thread, house_state, new_house_state)
+            reset_house_state(
+                temp_message_thread, house_state, new_house_state, my_state
+            )
 
             if BOTON_ENTER.value:
                 estado_actual_casa = HouseStates.PASSWORD
@@ -129,6 +132,7 @@ def main():
             if len(password) < 3:
                 password = guardar_botones(password)
             elif len(password) == 3 and BOTON_ENTER.value:
+
                 aceptado = verificar_password(password)
                 password = []
 
@@ -141,6 +145,7 @@ def main():
                     )
                     temp_message_thread.start()
                     estado_actual_casa = HouseStates.NORMAL
+                    sleep(0.5)
 
                 else:
                     temp_message_thread = threading.Thread(
@@ -164,7 +169,8 @@ def main():
 def sensor_fuego():
     # LOGICA SENSOR FUEGO
     gas_value = read_adc(GAS_CHANNEL)  # Leer canal 1 (sensor de gas)
-    if gas_value > 1500:
+    # print("VALOR GAS: ", gas_value)
+    if gas_value > 1800:
         ROCIADORES.value = True
         ALARMA.value = True
     else:
@@ -173,19 +179,20 @@ def sensor_fuego():
 
 
 def mod_temperature_mesg(new_house_state, formatted_date):
-    print("#" * 15)
-    print(new_house_state)
-    print("#" * 15)
-    new_house_state = sensor_temperatura(formatted_date)
+    # print("#" * 15)
+    # print(new_house_state)
+    # print("#" * 15)
+    new_house_state = sensor_temperatura(formatted_date, new_house_state)
 
 
-def sensor_temperatura(formatted_date):
+def sensor_temperatura(formatted_date, myhs):
     try:
         temperature = DHT11_DEV.temperature
         humidity = DHT11_DEV.humidity
 
         if humidity is not None and temperature is not None:
-            print("Temp={0:0.1f}*C  Humidity={1:0.1f}%".format(temperature, humidity))
+            # print("Temp={0:0.1f}*C  Humidity={1:0.1f}%".format(temperature, humidity))
+            pass
         else:
             print("Failed to get reading. Try again!")
             temperature = "Err"
@@ -203,39 +210,46 @@ def sensor_temperatura(formatted_date):
         humidity = "Err"
 
     new_house_state = ["Temp " + str(temperature) + " C", formatted_date]
+    myhs.new_house_state = new_house_state
     sleep(2)
-    return new_house_state
+    # return new_house_state
 
 
 def luces_casa():
     # LOGICA LUCES DE LA CASA
     ENCENDIDAS = ENCENDER_LUCES.value
     light_value = read_adc(LUZ_CHANNEL)  # Leer canal 0 (foto resistencia)
+    # print("LUZ CASA: ", light_value)
 
     if light_value > 500:
         if ENCENDIDAS:
             for pin in LUCES_CASA:
-                pin.value = True
+                pin.value = False
         else:
             for pin in LUCES_CASA:
-                pin.value = False
+                pin.value = True
     else:
         if ENCENDIDAS:
             for pin in LUCES_CASA:
-                pin.value = False
+                pin.value = True
         else:
             for pin in LUCES_CASA:
-                pin.value = True
+                pin.value = False
 
 
-def reset_house_state(temp_message_thread, house_state, new_house_state):
+def reset_house_state(temp_message_thread, house_state, new_house_state, myhs):
     if temp_message_thread is not None:
-        if not temp_message_thread.is_alive() and new_house_state[0] != house_state[0]:
+        if (
+            not temp_message_thread.is_alive()
+            and myhs.new_house_state[0] != myhs.house_state[0]
+        ):
+            myhs.house_state = myhs.new_house_state
             house_state = new_house_state
-            lcd_message(house_state[0], house_state[1])
-    elif temp_message_thread is None and new_house_state[0] != house_state[0]:
+            lcd_message(myhs.house_state[0], myhs.house_state[1])
+    elif temp_message_thread is None and myhs.new_house_state[0] != myhs.house_state[0]:
+        myhs.house_state = myhs.new_house_state
         house_state = new_house_state
-        lcd_message(house_state[0], house_state[1])
+        lcd_message(myhs.house_state[0], myhs.house_state[1])
 
 
 def guardar_botones(password):
@@ -320,6 +334,9 @@ class MyHouseState:
         self.formatted_date = current_date.strftime("%d/%m/%Y")
         self.house_state = ["", self.formatted_date]
         self.new_house_state = ["", self.formatted_date]
+
+    def __str__(self) -> str:
+        return f"HS: {self.house_state}, NHS: {self.new_house_state}"
 
 
 if __name__ == "__main__":
