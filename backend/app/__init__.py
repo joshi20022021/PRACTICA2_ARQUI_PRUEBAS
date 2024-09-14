@@ -27,7 +27,7 @@ def create_app(test_config=None):
     )
 
     from app.api.sensors import sensors
-    from app.api.actuator import actuators
+    from app.api.actuators import actuators
     from app.api.graphics import graphics
     from app.api.lcd import lcd
 
