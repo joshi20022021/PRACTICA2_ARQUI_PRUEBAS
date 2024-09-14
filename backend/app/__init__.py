@@ -16,7 +16,6 @@ def create_app(test_config=None):
     # load .env variables
     mongo_uri = os.getenv("MONGO_URI")
     pem_path = os.getenv("MONGO_PEM_PATH")
-
     # connect to mongodb using certificate
     mongo_client = MongoClient(
         mongo_uri, tls=True, tlsCertificateKeyFile=pem_path, server_api=ServerApi("1")
@@ -26,5 +25,15 @@ def create_app(test_config=None):
         DATABASE_CLIENT=mongo_client,
         DATABASE=mongo_client["smart_home"],
     )
+
+    from app.api.sensors import sensors
+    from app.api.actuator import actuators
+    from app.api.graphics import graphics
+    from app.api.lcd import lcd
+
+    app.register_blueprint(sensors)
+    app.register_blueprint(actuators)
+    app.register_blueprint(graphics)
+    app.register_blueprint(lcd)
 
     return app
