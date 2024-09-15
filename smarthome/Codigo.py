@@ -85,7 +85,6 @@ def main():
     # BOTON DE LUZ APAGADO
     while True:
         # When is in normal mode
-
         if estado_actual_casa == HouseStates.NORMAL:
             # new_house_state = sensor_temperatura(formatted_date)
 
