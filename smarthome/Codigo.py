@@ -1,6 +1,7 @@
 from lcd_api import LcdApi
 from i2c_lcd import I2cLcd
-from states import HouseStates
+from socket_server import handle_command_socket, handle_state_socket
+from states import HouseStates, LightsChanger, SensorStates, SmartHomeState
 
 import spidev
 import adafruit_dht
@@ -10,6 +11,7 @@ import digitalio
 import threading
 from datetime import datetime
 from time import sleep
+import requests
 
 # LCD DISPLAY
 I2C_ADDR = 0x27
@@ -61,6 +63,12 @@ BOTON_RIEGO.direction = digitalio.Direction.INPUT
 REGADORES.direction = digitalio.Direction.OUTPUT
 
 
+# SmartHomeState
+SMARTHOME = SmartHomeState()
+ULTIMO_CAMBIO_LUCES: LightsChanger = LightsChanger.SENSOR
+API_URL = "http://127.0.0.1:5000/"
+
+
 def main():
     # Main program block
     ##################
@@ -71,6 +79,7 @@ def main():
     current_date = datetime.now()
     formatted_date = current_date.strftime("%d/%m/%Y")
     house_state = ["Temp 27 c", formatted_date]
+    SMARTHOME.temp(27)
     new_house_state = house_state.copy()
 
     lcd_message(house_state[0], house_state[1])
@@ -215,25 +224,53 @@ def sensor_temperatura(formatted_date, myhs):
 
 
 def luces_casa():
+    global ULTIMO_CAMBIO_LUCES
     # LOGICA LUCES DE LA CASA
     ENCENDIDAS = ENCENDER_LUCES.value
     light_value = read_adc(LUZ_CHANNEL)  # Leer canal 0 (foto resistencia)
     # print("LUZ CASA: ", light_value)
-
-    if light_value > 500:
-        if ENCENDIDAS:
-            for pin in LUCES_CASA:
-                pin.value = False
-        else:
-            for pin in LUCES_CASA:
-                pin.value = True
+    light_sensor: bool = False
+    if light_value < 500:
+        light_sensor = True
     else:
-        if ENCENDIDAS:
-            for pin in LUCES_CASA:
-                pin.value = True
-        else:
-            for pin in LUCES_CASA:
-                pin.value = False
+        light_sensor = False
+
+    home_sensor: bool = False
+    if SMARTHOME.light == "on":
+        home_sensor = True
+
+    estado_actual: bool = LUCES_CASA[0].value
+
+    def actualizar_luces():
+        match ULTIMO_CAMBIO_LUCES:
+            case LightsChanger.SENSOR:
+                estado_luces = light_sensor
+            case LightsChanger.SWITCH:
+                estado_luces = ENCENDIDAS
+            case LightsChanger.API:
+                estado_luces = home_sensor
+
+        LUCES_CASA[0].value = estado_luces
+
+    if (
+        light_sensor != LUCES_CASA[0].value
+        and ULTIMO_CAMBIO_LUCES != LightsChanger.SENSOR
+    ):
+        ULTIMO_CAMBIO_LUCES = LightsChanger.SENSOR
+        actualizar_luces()
+
+    # Si cambia el switch
+    if (
+        ENCENDIDAS != LUCES_CASA[0].value
+        and ULTIMO_CAMBIO_LUCES != LightsChanger.SWITCH
+    ):
+        ULTIMO_CAMBIO_LUCES = LightsChanger.SWITCH
+        actualizar_luces()
+
+    # Si cambia la aplicación
+    if home_sensor != LUCES_CASA[0].value and ULTIMO_CAMBIO_LUCES != LightsChanger.API:
+        ultimo_cambio = LightsChanger.API
+        actualizar_luces()
 
 
 def reset_house_state(temp_message_thread, house_state, new_house_state, myhs):
@@ -339,6 +376,12 @@ class MyHouseState:
 
 
 if __name__ == "__main__":
+    from threading import Thread
+
+    state_thread = Thread(target=handle_state_socket, args=[SMARTHOME])
+    command_thread = Thread(target=handle_command_socket, args=[SMARTHOME])
+    state_thread.start()
+    command_thread.start()
     try:
         main()
     except KeyboardInterrupt:
@@ -349,3 +392,5 @@ if __name__ == "__main__":
         lcd.putstr("Goodbye!")
         sleep(0.5)
         spi.close()
+        state_thread.join()
+        command_thread.join()

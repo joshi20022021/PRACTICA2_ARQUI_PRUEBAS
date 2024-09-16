@@ -23,17 +23,19 @@ def create_app(test_config=None):
 
     app.config.from_mapping(
         DATABASE_CLIENT=mongo_client,
-        DATABASE=mongo_client["smart_home"],
+        DATABASE=mongo_client["smart-home"],
     )
 
     from app.api.sensors import sensors
     from app.api.actuators import actuators
     from app.api.graphics import graphics
     from app.api.lcd import lcd
+    from app.api.raspberry import raspberry
 
     app.register_blueprint(sensors)
     app.register_blueprint(actuators)
     app.register_blueprint(graphics)
     app.register_blueprint(lcd)
+    app.register_blueprint(raspberry, url_prefix="/raspberry")
 
     return app

@@ -23,6 +23,8 @@ def luces():
     new_light_state = state_changer(current_light_state)
 
     send_light_command_to_socket(new_light_state)
+    house_state = get_house_state_from_socket()
+    print(house_state)
 
     return jsonify({"luces": new_light_state}), 200
 
