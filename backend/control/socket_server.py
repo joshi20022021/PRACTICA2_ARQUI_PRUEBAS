@@ -8,7 +8,12 @@ state_socket_path = "/tmp/smart_house_state_socket"
 command_socket_path = "/tmp/smart_house_command_socket"
 
 # Simulated state of the house
-house_state = {"temperature": 23.5, "lights": "on", "air_conditioning": "off"}
+house_state = {
+    "temperature": 23.5,
+    "lights": "on",
+    "air_conditioning": "off",
+    "alarm": "off",
+}
 
 
 def handle_state_socket():
@@ -27,6 +32,7 @@ def handle_state_socket():
         print("State connection established")
         conn.sendall(str(house_state).encode("utf-8"))  # Send house state as bytes
         conn.close()
+        print("Get state Connection closed")
 
 
 def handle_command_socket():
@@ -42,7 +48,6 @@ def handle_command_socket():
 
     while True:
         conn, _ = command_socket.accept()
-        print("Command connection established")
         data = conn.recv(1024)
         if data:
             command = eval(data.decode("utf-8"))
@@ -51,9 +56,14 @@ def handle_command_socket():
                 case "toggle_lights":
                     new_light_state = command.get("state")
                     house_state["lights"] = new_light_state
-                    print(f"Lights have been toggled to: {new_light_state}")
+                case "toggle_alarm":
+                    new_alarm_state = command.get("state")
+                    house_state["alarm"] = new_alarm_state
 
-        conn.sendall(str(house_state).encode("utf-8"))  # Send updated state back
+        try:
+            conn.sendall(str(house_state).encode("utf-8"))  # Send updated state back
+        except BrokenPipeError:
+            print("Client closed")
         conn.close()
 
 
