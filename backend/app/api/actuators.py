@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, current_app
 from app.services.socket_service import (
     get_house_state_from_socket,
     send_alarm_command_to_socket,
+    send_greenhouse_command_to_socket,
     send_light_command_to_socket,
 )
 
@@ -12,15 +13,14 @@ from app.services.socket_service import (
 actuators = Blueprint("actuators", __name__)
 
 
+# TODO
+# send to mongo DB
 @actuators.route("/luces", methods=["POST"])
 def luces():
     house_state = get_house_state_from_socket()
 
     current_light_state = house_state.get("lights")
-    if current_light_state == "on":
-        new_light_state = "off"
-    else:
-        new_light_state = "on"
+    new_light_state = state_changer(current_light_state)
 
     send_light_command_to_socket(new_light_state)
 
@@ -28,16 +28,13 @@ def luces():
 
 
 # TODO
+# send to mongo db
 @actuators.route("/alarma", methods=["POST"])
 def alarma():
     house_state = get_house_state_from_socket()
 
     current_alarm_state = house_state.get("alarm")
-    print(current_alarm_state)
-    if current_alarm_state == "on":
-        new_alarm_state = "off"
-    else:
-        new_alarm_state = "on"
+    new_alarm_state = state_changer(current_alarm_state)
 
     send_alarm_command_to_socket(new_alarm_state)
 
@@ -45,6 +42,21 @@ def alarma():
 
 
 # TODO
+# send to mongodb
 @actuators.route("/invernadero", methods=["POST"])
 def invernadero():
-    return jsonify({"invernadero": True}), 200
+    house_state = get_house_state_from_socket()
+
+    current_greenhouse_state = house_state.get("greenhouse")
+    new_greenhouse_state = state_changer(current_greenhouse_state)
+
+    send_greenhouse_command_to_socket(new_greenhouse_state)
+
+    return jsonify({"invernadero": new_greenhouse_state}), 200
+
+
+def state_changer(state):
+    if state == "on":
+        return "off"
+    else:
+        return "on"

@@ -44,3 +44,29 @@ def send_alarm_command_to_socket(new_alarm_state):
         # Receive the updated house state after the command is executed
         data = s.recv(1024)
         return eval(data.decode("utf-8"))
+
+
+def send_greenhouse_command_to_socket(new_greenhouse_state):
+    # Create a Unix socket and connect to the socket file
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.connect(command_socket_path)
+        command = {"command": "toggle_greenhouse", "state": new_greenhouse_state}
+        s.sendall(
+            str(command).encode("utf-8")
+        )  # Send the new light state to the control program
+        # Receive the updated house state after the command is executed
+        data = s.recv(1024)
+        return eval(data.decode("utf-8"))
+
+
+def send_message_to_socket(message):
+    # Create a Unix socket and connect to the socket file
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.connect(command_socket_path)
+        command = {"command": "send_message", "message": message}
+        s.sendall(
+            str(command).encode("utf-8")
+        )  # Send the new light state to the control program
+        # Receive the updated house state after the command is executed
+        data = s.recv(1024)
+        return eval(data.decode("utf-8"))

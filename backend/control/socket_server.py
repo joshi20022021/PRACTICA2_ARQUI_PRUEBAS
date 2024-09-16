@@ -13,6 +13,8 @@ house_state = {
     "lights": "on",
     "air_conditioning": "off",
     "alarm": "off",
+    "greenhouse": "off",
+    "current_message": "",
 }
 
 
@@ -59,6 +61,12 @@ def handle_command_socket():
                 case "toggle_alarm":
                     new_alarm_state = command.get("state")
                     house_state["alarm"] = new_alarm_state
+                case "toggle_greenhouse":
+                    new_greenhouse_state = command.get("state")
+                    house_state["greenhouse"] = new_greenhouse_state
+                case "send_message":
+                    new_message = command.get("message")
+                    house_state["current_message"] = new_message
 
         try:
             conn.sendall(str(house_state).encode("utf-8"))  # Send updated state back
