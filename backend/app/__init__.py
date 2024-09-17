@@ -4,6 +4,7 @@ from flask import Flask
 from pymongo import MongoClient, mongo_client
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
+from flask_cors import CORS, cross_origin
 
 
 load_dotenv()
@@ -12,6 +13,8 @@ load_dotenv()
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(SECRET_KEY=os.getenv("SECRET_KEY"))
+    cors = CORS(app)
+    app.config["CORS_HEADERS"] = "Content-type"
 
     # load .env variables
     mongo_uri = os.getenv("MONGO_URI")

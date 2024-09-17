@@ -2,6 +2,7 @@
 
 import socket
 import os
+import json
 
 from states import SmartHomeState
 
@@ -24,7 +25,11 @@ def handle_state_socket(house_state: SmartHomeState):
     while True:
         conn, _ = state_socket.accept()
         print("State connection established")
-        conn.sendall(str(house_state).encode("utf-8"))  # Send house state as bytes
+
+        new_house_state = house_state.to_dict()
+        conn.sendall(str(new_house_state).encode("utf-8"))
+        # conn.sendall(json.dumps(house_state).encode("utf-8"))
+        # conn.sendall(str(house_state).encode("utf-8"))  # Send house state as bytes
         conn.close()
         print("Get state Connection closed")
 
@@ -60,7 +65,8 @@ def handle_command_socket(house_state: SmartHomeState):
                     new_message = command.get("message")
                     house_state.message = new_message
         try:
-            conn.sendall(str(house_state).encode("utf-8"))  # Send updated state back
+            new_house_state = house_state.to_dict()
+            conn.sendall(str(new_house_state).encode("utf-8"))
         except BrokenPipeError:
             print("Client closed")
         conn.close()

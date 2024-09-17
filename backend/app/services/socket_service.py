@@ -12,12 +12,11 @@ def get_house_state_from_socket():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
         s.connect(state_socket_path)
         data = s.recv(1024)  # Receive data from the socket (1024 bytes)
-
-    # Decode the received data and convert it to a dictionary
-    house_state = eval(
-        data.decode("utf-8")
-    )  # Be cautious with eval; JSON is preferred in production
-    return house_state
+        # Decode the received data and convert it to a dictionary
+        house_state = eval(
+            data.decode("utf-8")
+        )  # Be cautious with eval; JSON is preferred in production
+        return house_state
 
 
 def send_light_command_to_socket(new_light_state):

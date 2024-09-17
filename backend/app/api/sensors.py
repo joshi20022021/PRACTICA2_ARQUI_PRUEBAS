@@ -11,8 +11,15 @@ sensors = Blueprint("sensors", __name__)
 # TODO
 @sensors.route("/sensores", methods=["GET"])
 def sensores():
-    try:
-        print(get_house_state_from_socket())
-    except FileNotFoundError:
-        print("Smart Home isn't running!!!")
-    return jsonify({"hola": 5}), 200
+    house_state = get_house_state_from_socket()
+    return (
+        jsonify(
+            {
+                "ac": house_state.get("ac"),
+                "alarma": house_state.get("alarm"),
+                "luces": house_state.get("lights"),
+                "invernadero": house_state.get("water_pump"),
+            }
+        ),
+        200,
+    )

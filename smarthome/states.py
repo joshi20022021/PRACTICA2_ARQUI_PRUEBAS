@@ -1,4 +1,5 @@
 from enum import Enum
+import datetime
 
 
 class HouseStates(Enum):
@@ -21,13 +22,12 @@ class LightsChanger(Enum):
 class SmartHomeState:
     def __init__(
         self,
-        message: str = "",
         temp: float = 0.0,
         humidity: float = 0.0,
-        smoke: float = 0.0,
+        smoke: bool = False,
         light: float = 0.0,
     ):
-        self.message = message
+        self._message: list = ["", ""]
 
         self._temp = temp
         self.ac: str = SensorStates.OFF
@@ -36,21 +36,62 @@ class SmartHomeState:
 
         self._humidity = humidity
         self.water_pump = SensorStates.OFF
-        if self._humidity < 500:
-            self.water_pump = SensorStates.ON
         self._smoke = smoke
         self.alarm: str = SensorStates.OFF
-        if self._smoke > 1000:
+        if self._smoke:
             self.alarm = SensorStates.ON
 
         self._light_sensor = light
         self.light = SensorStates.OFF
         if self._light_sensor > 1000:
             self.light = SensorStates.ON
+        self._success: list = []
+        self._failure: list = []
+
+    def to_dict(self) -> dict:
+        return {
+            "light_sensor": self._light_sensor,
+            "lights": self.light,
+            "smoke": self._smoke,
+            "alarm": self.alarm,
+            "temp_sensor": self._temp,
+            "ac": self.ac,
+            "humidity": self._humidity,
+            "water_pump": self.water_pump,
+            "time": "",
+            "success": self._success,
+            "failure": self._failure,
+        }
+
+    @property
+    def success(self):
+        return self._success
+
+    @success.setter
+    def success(self, date):
+        self._success.append(date)
+
+    @property
+    def failure(self):
+        return self._failure
+
+    @failure.setter
+    def failure(self, date):
+        self._failure.append(date)
+
+    @property
+    def message(self):
+        return self._message
+
+    @message.setter
+    def message(self, new_message: str):
+        first = new_message[0:16]
+        second = new_message[16:32]
+        self._message = [first, second]
 
     @property
     def temp(self):
-        return self.temp
+        return self._temp
 
     @temp.setter
     def temp(self, new_temp: float):
@@ -67,20 +108,14 @@ class SmartHomeState:
     @humidity.setter
     def humidity(self, new_humidity: float):
         self._humidity = new_humidity
-        if self._humidity < 500:
-            self.water_pump = SensorStates.ON
 
     @property
     def smoke(self):
         return self._smoke
 
     @smoke.setter
-    def smoke(self, new_smoke: float):
+    def smoke(self, new_smoke: bool):
         self._smoke = new_smoke
-        if self._smoke > 1000:
-            self.alarm = SensorStates.ON
-        else:
-            self.alarm = SensorStates.OFF
 
     @property
     def light_sensor(self):
