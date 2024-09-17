@@ -1,0 +1,135 @@
+.login-page {
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+    background-color: #1f1c2c; 
+}
+  
+.login-left {
+    flex: 1;
+    background: linear-gradient(45deg, #007BFF, #1F1C2C);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 190px;
+    color: rgb(255, 255, 255);
+    animation: fadeIn 1s ease-in-out;
+}
+  
+.login-left h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+    animation: slideInLeft 1s ease-in-out;
+}
+  
+.login-left p {
+    font-size: 16px;
+    margin-bottom: 30px;
+    animation: slideInLeft 1.2s ease-in-out;
+}
+  
+.login-right {
+    flex: 1;
+    background: linear-gradient(145deg, #ffffff, #e6e6e6);
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0px 4px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    max-width: 400px;
+    margin: 0 auto;
+    animation: slideInRight 1s ease-in-out;
+}
+  
+.login-right h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 28px;
+    color: #333;
+}
+  
+.login-right form {
+    display: flex;
+    flex-direction: column;
+}
+  
+.login-right input {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+  
+.login-right input:focus {
+    border-color: #007BFF;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    outline: none;
+}
+  
+.login-right button {
+    padding: 15px;
+    background: linear-gradient(90deg, #007BFF, #0056b3);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+  
+.login-right button:hover {
+    background: linear-gradient(90deg, #0056b3, #007BFF);
+    transform: scale(1.05);
+}
+  
+.error-message {
+    color: red;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+  
+@keyframes slideInLeft {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+  
+@keyframes slideInRight {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+  
+@media (max-width: 768px) {
+    .login-page {
+        flex-direction: column;
+    }
+  
+    .login-left {
+        display: none;
+    }
+  
+    .login-right {
+        width: 100%;
+        padding: 20px;
+    }
+}
